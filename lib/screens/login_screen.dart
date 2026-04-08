@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+import 'halaqoh_selection_screen.dart';
+import 'teacher_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,18 +46,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 Text(
-                  _isLogin ? 'Hafalan dari mana saja' : 'Bergabunglah untuk mulai menghafal',
+                  _isLogin
+                      ? 'Hafalan dari mana saja'
+                      : 'Bergabunglah untuk mulai menghafal',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 40),
 
                 // Pilihan Peran (Guru / Murid)
                 DropdownButtonFormField<String>(
-                  value: _selectedRole,
+                  initialValue: _selectedRole,
                   decoration: InputDecoration(
                     labelText: 'Mendaftar/Masuk sebagai',
                     border: OutlineInputBorder(
@@ -143,18 +143,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   )
                 else
-                  const SizedBox(height: 24), // Jarak ekstra jika di mode Sign Up
-
+                  const SizedBox(
+                    height: 24,
+                  ), // Jarak ekstra jika di mode Sign Up
                 // Tombol Login / Register
                 ElevatedButton(
                   onPressed: () {
-                    // Pindah ke Dashboard
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DashboardScreen(),
-                      ),
-                    );
+                    if (_selectedRole == 'Murid') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HalaqohSelectionScreen(),
+                        ),
+                      );
+                    } else {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TeacherDashboardScreen(),
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal,
