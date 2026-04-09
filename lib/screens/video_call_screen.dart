@@ -18,7 +18,7 @@ class VideoCallScreen extends StatelessWidget {
             child: Icon(
               Icons.videocam,
               size: 120,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
           ),
 
