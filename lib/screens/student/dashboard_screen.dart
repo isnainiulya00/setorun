@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
-import 'chat_page.dart';
+import '../shared/chat_page.dart';
 import 'mutabaah_page.dart';
-import 'profile_page.dart';
-import 'quran_page.dart';
+import '../shared/profile_page.dart';
+import '../shared/quran_page.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,10 +17,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    const ChatPage(),
+    const ChatPage(role: "Murid"),
     const MutabaahPage(),
     const QuranPage(),
-    const ProfilePage(),
+    const ProfilePage(role: "Murid"),
   ];
 
   void _onItemTapped(int index) {
