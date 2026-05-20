@@ -186,7 +186,14 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
   Widget _buildStatCard(String title, String count, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),
+<<<<<<< HEAD
       decoration: BoxDecoration(color: Colors.teal.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+=======
+      decoration: BoxDecoration(
+        color: Colors.teal.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+>>>>>>> d6d9a9a9f0e8c954edfac2ec8ad5b644e6056a23
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -201,7 +208,19 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
   Widget _buildQuickAction(IconData icon, String label) {
     return Column(
       children: [
+<<<<<<< HEAD
         CircleAvatar(backgroundColor: Colors.teal.withOpacity(0.2), child: Icon(icon, color: Colors.teal)),
+=======
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.teal.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.teal, size: 28),
+        ),
+>>>>>>> d6d9a9a9f0e8c954edfac2ec8ad5b644e6056a23
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(fontSize: 12)),
       ],

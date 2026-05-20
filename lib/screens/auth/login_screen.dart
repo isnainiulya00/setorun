@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import '../student/halaqoh_selection_screen.dart';
 import '../teacher/teacher_dashboard_screen.dart';
+=======
+import 'package:setorunn/screens/halaqoh_selection_screen.dart';
+import 'package:setorunn/screens/teacher/teacher_dashboard_screen.dart';
+>>>>>>> d6d9a9a9f0e8c954edfac2ec8ad5b644e6056a23
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
