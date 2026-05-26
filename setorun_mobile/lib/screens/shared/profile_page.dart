@@ -1,65 +1,85 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
 import 'placeholder_screen.dart';
 
 class ProfilePage extends StatelessWidget {
-  final String role; // Menerima data role dari halaman sebelumnya
+  final String role;
 
   const ProfilePage({super.key, required this.role});
 
   @override
   Widget build(BuildContext context) {
-    // Logika penentuan nama berdasarkan role
-    String namaUser = (role == 'Guru') ? 'Ustazah Isna' : 'Isnaini';
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+    final namaUser = user?.fullName.isNotEmpty == true
+        ? user!.fullName
+        : (role == 'Guru' ? 'Guru' : 'Murid');
+    final halaqohName = user?.halaqoh?.name;
 
     return Scaffold(
-      backgroundColor: Colors.white, // Background putih bersih sesuai kode Anda
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Profil", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Profil', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
         children: [
-          const SizedBox(height: 40), // Jarak atas diperbesar sedikit agar proporsional
-
-          // Foto Profil
+          const SizedBox(height: 40),
           const CircleAvatar(
             radius: 50,
-            backgroundColor: Colors.teal, // Warna dasar jika gambar tidak ada
-            // Pastikan gambar profile.png ada di folder assets/images/
-            // Jika belum ada, beri comment (//) pada baris backgroundImage di bawah ini
-            backgroundImage: AssetImage('assets/images/profile.png'), 
+            backgroundColor: Colors.teal,
+            child: Icon(Icons.person, color: Colors.white, size: 48),
           ),
-
           const SizedBox(height: 16),
-          
-          // Nama User (Dinamis)
           Text(
             namaUser,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          
-          // Tambahan Label Role
           Text(
             role,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
-
+          if (user?.gender.isNotEmpty == true) ...[
+            const SizedBox(height: 4),
+            Text(
+              user!.genderLabel,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+          ],
+          if (halaqohName != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              halaqohName,
+              style: TextStyle(fontSize: 13, color: Colors.teal.shade600),
+            ),
+          ],
+          if (user?.email.isNotEmpty == true) ...[
+            const SizedBox(height: 4),
+            Text(
+              user!.email,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
           const SizedBox(height: 40),
-
-          // Menu List (Sesuai desain Anda)
-          _buildMenuItem(context, Icons.person, "Akun"),
-          _buildMenuItem(context, Icons.language, "Bahasa"),
-          _buildMenuItem(context, Icons.dark_mode, "Tema"),
-          _buildMenuItem(context, Icons.logout, "Logout", isLogout: true),
+          _buildMenuItem(context, Icons.person, 'Akun'),
+          _buildMenuItem(context, Icons.language, 'Bahasa'),
+          _buildMenuItem(context, Icons.dark_mode, 'Tema'),
+          _buildMenuItem(context, Icons.logout, 'Logout', isLogout: true),
         ],
       ),
     );
   }
 
-  // Fungsi bantuan untuk membuat List Menu
-  Widget _buildMenuItem(BuildContext context, IconData icon, String title, {bool isLogout = false}) {
+  Widget _buildMenuItem(
+    BuildContext context,
+    IconData icon,
+    String title, {
+    bool isLogout = false,
+  }) {
     return ListTile(
       leading: Icon(icon, color: isLogout ? Colors.red : Colors.black54),
       title: Text(
@@ -70,18 +90,17 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-      onTap: () {
+      onTap: () async {
         if (isLogout) {
-          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-        } else {
-          // ROUTING KE HALAMAN PLACEHOLDER
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PlaceholderScreen(title: title), // Membawa nama menu
-            ),
-          );
+          await context.read<AuthProvider>().logout();
+          return;
         }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlaceholderScreen(title: title),
+          ),
+        );
       },
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../student/halaqoh_selection_screen.dart';
-import '../teacher/teacher_dashboard_screen.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/halaqoh_model.dart';
+import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,204 +12,331 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _passwordConfirmController = TextEditingController();
+
   bool _isPasswordVisible = false;
-  bool _isLogin = true; // true = Sign In, false = Sign Up
-  String _selectedRole = 'Murid'; // Default peran
+  bool _isLogin = true;
+  bool _isSubmitting = false;
+  List<HalaqohModel> _halaqohList = [];
+  int? _selectedHalaqohId;
+  String _selectedGender = 'fem';
+  bool _loadingHalaqoh = false;
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadHalaqohIfNeeded() async {
+    if (_halaqohList.isNotEmpty || _loadingHalaqoh) return;
+    setState(() => _loadingHalaqoh = true);
+    try {
+      final list = await context.read<AuthProvider>().loadHalaqohList();
+      if (!mounted) return;
+      setState(() {
+        _halaqohList = list;
+        if (list.isNotEmpty) _selectedHalaqohId = list.first.id;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memuat daftar halaqoh. Periksa koneksi server.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingHalaqoh = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+    final auth = context.read<AuthProvider>();
+    bool success;
+
+    if (_isLogin) {
+      success = await auth.login(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+    } else {
+      if (_selectedHalaqohId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilih halaqoh terlebih dahulu.')),
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+      success = await auth.registerStudent(
+        email: _emailController.text,
+        fullName: _fullNameController.text,
+        gender: _selectedGender,
+        password: _passwordController.text,
+        passwordConfirm: _passwordConfirmController.text,
+        halaqohId: _selectedHalaqohId!,
+      );
+    }
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    if (!success && auth.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.errorMessage!)),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isBusy = _isSubmitting || auth.status == AuthStatus.loading;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Logo Aplikasi
-                const Icon(
-                  Icons.menu_book_rounded,
-                  size: 80,
-                  color: Colors.teal,
-                ),
-                const SizedBox(height: 16),
-
-                // Judul Berubah Sesuai Mode
-                Text(
-                  _isLogin ? 'SETORUN' : 'DAFTAR AKUN',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(
+                    Icons.menu_book_rounded,
+                    size: 80,
                     color: Colors.teal,
-                    letterSpacing: 2,
                   ),
-                ),
-                Text(
-                  _isLogin
-                      ? 'Hafalan dari mana saja'
-                      : 'Bergabunglah untuk mulai menghafal',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 40),
-
-                // Pilihan Peran (Guru / Murid)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedRole,
-                  decoration: InputDecoration(
-                    labelText: 'Mendaftar/Masuk sebagai',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isLogin ? 'SETORUN' : 'DAFTAR AKUN',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                      letterSpacing: 2,
                     ),
-                    prefixIcon: const Icon(Icons.person_outline),
                   ),
-                  items: ['Guru', 'Murid'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      _selectedRole = newValue!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
+                  Text(
+                    _isLogin
+                        ? 'Hafalan dari mana saja'
+                        : 'Daftar sebagai murid (guru dibuat admin)',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 40),
 
-                // Input Nama Lengkap (HANYA MUNCUL SAAT SIGN UP)
-                if (!_isLogin) ...[
+                  if (!_isLogin) ...[
+                    TextFormField(
+                      controller: _fullNameController,
+                      keyboardType: TextInputType.name,
+                      decoration: InputDecoration(
+                        labelText: 'Nama Lengkap',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.badge_outlined),
+                      ),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedGender,
+                      decoration: InputDecoration(
+                        labelText: 'Jenis Kelamin',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.wc_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'fem', child: Text('Perempuan')),
+                        DropdownMenuItem(value: 'male', child: Text('Laki-laki')),
+                      ],
+                      onChanged: (v) => setState(() => _selectedGender = v!),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   TextFormField(
-                    keyboardType: TextInputType.name,
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      labelText: 'Nama Lengkap',
+                      labelText: 'Email',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      prefixIcon: const Icon(Icons.badge_outlined),
+                      prefixIcon: const Icon(Icons.email_outlined),
                     ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
+                      if (!v.contains('@')) return 'Format email tidak valid';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
-                ],
 
-                // Input Email / ID
-                TextFormField(
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email atau No. Induk',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.email_outlined),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Input Password
-                TextFormField(
-                  obscureText: !_isPasswordVisible,
-                  decoration: InputDecoration(
-                    labelText: 'Kata Sandi',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: !_isPasswordVisible,
+                    decoration: InputDecoration(
+                      labelText: 'Kata Sandi',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Lupa Password (HANYA MUNCUL SAAT SIGN IN)
-                if (_isLogin)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // Aksi lupa password
-                      },
-                      child: const Text('Lupa Kata Sandi?'),
-                    ),
-                  )
-                else
-                  const SizedBox(
-                    height: 24,
-                  ), // Jarak ekstra jika di mode Sign Up
-                // Tombol Login / Register
-                ElevatedButton(
-                  onPressed: () {
-                    if (_selectedRole == 'Murid') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HalaqohSelectionScreen(),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
-                      );
-                    } else {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const TeacherDashboardScreen(),
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                        onPressed: () {
+                          setState(() => _isPasswordVisible = !_isPasswordVisible);
+                        },
+                      ),
                     ),
+                    validator: (v) =>
+                        (v == null || v.length < 8) ? 'Minimal 8 karakter' : null,
                   ),
-                  child: Text(
-                    _isLogin ? 'MASUK' : 'DAFTAR SEKARANG',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Opsi Pindah Mode (Sign In <-> Sign Up)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _isLogin ? 'Belum punya akun?' : 'Sudah punya akun?',
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _isLogin = !_isLogin; // Mengubah mode
-                        });
+                  if (!_isLogin) ...[
+                    TextFormField(
+                      controller: _passwordConfirmController,
+                      obscureText: !_isPasswordVisible,
+                      decoration: InputDecoration(
+                        labelText: 'Konfirmasi Kata Sandi',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                      ),
+                      validator: (v) {
+                        if (v != _passwordController.text) {
+                          return 'Kata sandi tidak cocok';
+                        }
+                        return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    if (_loadingHalaqoh)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      DropdownButtonFormField<int>(
+                        initialValue: _selectedHalaqohId,
+                        decoration: InputDecoration(
+                          labelText: 'Pilih Halaqoh',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.groups_outlined),
+                        ),
+                        items: _halaqohList
+                            .map(
+                              (h) => DropdownMenuItem(
+                                value: h.id,
+                                child: Text(
+                                  '${h.name} (${h.gender == 'male' ? 'Putra' : 'Putri'})',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedHalaqohId = v),
+                        validator: (v) =>
+                            v == null ? 'Pilih halaqoh Anda' : null,
+                      ),
+                    const SizedBox(height: 8),
+                  ] else
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {},
+                        child: const Text('Lupa Kata Sandi?'),
+                      ),
+                    ),
+
+                  ElevatedButton(
+                    onPressed: isBusy ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: isBusy
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _isLogin ? 'MASUK' : 'DAFTAR SEKARANG',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _isLogin ? 'Belum punya akun?' : 'Sudah punya akun?',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      TextButton(
+                        onPressed: isBusy
+                            ? null
+                            : () {
+                                setState(() {
+                                  _isLogin = !_isLogin;
+                                });
+                                if (!_isLogin) _loadHalaqohIfNeeded();
+                              },
+                        child: Text(
+                          _isLogin ? 'Daftar di sini' : 'Masuk di sini',
+                          style: const TextStyle(
+                            color: Colors.teal,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (_isLogin)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
                       child: Text(
-                        _isLogin ? 'Daftar di sini' : 'Masuk di sini',
-                        style: const TextStyle(
-                          color: Colors.teal,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        'Guru: gunakan akun yang dibuat admin.\nMurid: daftar lewat "Daftar di sini".',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

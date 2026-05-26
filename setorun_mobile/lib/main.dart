@@ -1,9 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/auth/login_screen.dart'; // Ubah import ini
+import 'package:provider/provider.dart';
+
+import 'app.dart';
+import 'providers/auth_provider.dart';
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
+import 'services/storage_service.dart';
 
 void main() {
-  runApp(const SetorunApp());
+  final storage = StorageService();
+  final apiClient = ApiClient(storage);
+  final authService = AuthService(apiClient, storage);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authService, storage)..initialize(),
+        ),
+      ],
+      child: const SetorunApp(),
+    ),
+  );
 }
 
 class SetorunApp extends StatelessWidget {
@@ -19,7 +38,7 @@ class SetorunApp extends StatelessWidget {
         textTheme: GoogleFonts.poppinsTextTheme(),
         useMaterial3: true,
       ),
-      home: const LoginScreen(), // Ubah ini agar mengarah ke LoginScreen
+      home: const AuthGate(),
     );
   }
 }
