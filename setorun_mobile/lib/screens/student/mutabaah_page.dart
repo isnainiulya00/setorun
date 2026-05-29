@@ -1,71 +1,95 @@
 import 'package:flutter/material.dart';
 
-class MutabaahPage extends StatelessWidget {
+import '../../models/mutabaah_model.dart';
+import '../../services/api_client.dart';
+import '../../services/data_service.dart';
+import '../../services/storage_service.dart';
+
+class MutabaahPage extends StatefulWidget {
   const MutabaahPage({super.key});
 
-  final List<Map<String, String>> data = const [
-    {
-      "tanggal": "Senin, 7 April",
-      "judul": "Al-Baqarah 1-5",
-      "status": "Selesai"
-    },
-    {
-      "tanggal": "Rabu, 5 April",
-      "judul": "An-Nas",
-      "status": "Selesai"
-    },
-    {
-      "tanggal": "Senin, 3 April",
-      "judul": "Al-Fatihah",
-      "status": "Belum disetujui"
-    },
-  ];
+  @override
+  State<MutabaahPage> createState() => _MutabaahPageState();
+}
+
+class _MutabaahPageState extends State<MutabaahPage> {
+  late final MutabaahService _service;
+  List<MutabaahModel> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _service = MutabaahService(ApiClient(StorageService()));
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final items = await _service.fetchList();
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Mutabaah Hafalan"),
+        title: const Text('Mutabaah Hafalan'),
         backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: data.length,
-        itemBuilder: (context, index) {
-          final item = data[index];
-
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
+          : RefreshIndicator(
+              onRefresh: _load,
+              color: Colors.teal,
+              child: _items.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(child: Text('Belum ada data mutabaah dari guru')),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.green,
+                              child: const Icon(Icons.check, color: Colors.white),
+                            ),
+                            title: Text(item.judul),
+                            subtitle: Text(
+                              '${item.tanggalLabel} • ${item.noteDisplay}',
+                            ),
+                            trailing: Text(
+                              item.status,
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: item["status"] == "Selesai"
-                    ? Colors.green
-                    : Colors.orange,
-                child: Icon(
-                  item["status"] == "Selesai"
-                      ? Icons.check
-                      : Icons.schedule,
-                  color: Colors.white,
-                ),
-              ),
-              title: Text(item["judul"]!),
-              subtitle: Text(item["tanggal"]!),
-              trailing: Text(
-                item["status"]!,
-                style: TextStyle(
-                  color: item["status"] == "Selesai"
-                      ? Colors.green
-                      : Colors.orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

@@ -26,7 +26,11 @@ class AuthService {
   }) async {
     final response = await _api.dio.post(
       '/auth/login/',
-      data: {'email': email.trim().toLowerCase(), 'password': password},
+      data: {
+        'login': email.trim(),
+        'email': email.trim(),
+        'password': password,
+      },
     );
     return _persistAuthResponse(response.data as Map<String, dynamic>);
   }
@@ -55,6 +59,24 @@ class AuthService {
 
   Future<UserModel> fetchProfile() async {
     final response = await _api.dio.get('/auth/profile/');
+    final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+    await _storage.saveUser(user);
+    return user;
+  }
+
+  Future<UserModel> updateProfile({
+    String? fullName,
+    String? email,
+    String? gender,
+  }) async {
+    final response = await _api.dio.patch(
+      '/auth/profile/',
+      data: {
+        if (fullName != null) 'full_name': fullName,
+        if (email != null) 'email': email,
+        if (gender != null) 'gender': gender,
+      },
+    );
     final user = UserModel.fromJson(response.data as Map<String, dynamic>);
     await _storage.saveUser(user);
     return user;

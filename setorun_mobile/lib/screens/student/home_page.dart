@@ -1,149 +1,198 @@
 import 'package:flutter/material.dart';
-import '../shared/video_call_screen.dart';
+import '../../models/murid_home_model.dart';
+import '../../services/api_client.dart';
+import '../../services/data_service.dart';
+import '../../services/storage_service.dart';
 import '../shared/chat_page.dart';
-import '../shared/placeholder_screen.dart';
+import '../shared/video_call_screen.dart';
+import 'jadwal_riwayat_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late final HomeService _homeService;
+  MuridHomeModel? _data;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final storage = StorageService();
+    _homeService = HomeService(ApiClient(storage));
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await _homeService.fetchMuridHome();
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 👋 Greeting
-          const Text(
-            "Assalamu’alaikum, Isna 👋",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Semangat menghafal hari ini!",
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: Colors.teal));
+    }
 
-          const SizedBox(height: 24),
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Gagal memuat data home'),
+            const SizedBox(height: 8),
+            ElevatedButton(onPressed: _load, child: const Text('Coba lagi')),
+          ],
+        ),
+      );
+    }
 
-          // 📘 Card Halaqoh (Bisa diklik -> Placeholder)
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PlaceholderScreen(title: 'Detail Halaqoh Al-Fatih'),
-                ),
-              );
-            },
-            child: Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(
-                  backgroundColor: Colors.teal,
-                  child: Icon(Icons.menu_book, color: Colors.white),
-                ),
-                title: Text("Halaqoh Al-Fatih", style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("Senin & Rabu • Ust. Ahmad"),
-                trailing: Icon(Icons.chevron_right, color: Colors.grey),
-              ),
+    final data = _data!;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: Colors.teal,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Assalamu\'alaikum, ${data.nama} 👋',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // 📊 Progress Hafalan
-          const Text(
-            "Progress Hafalan (Juz 30)",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: 0.6,
-              minHeight: 12,
-              backgroundColor: Colors.teal.shade100,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+            const SizedBox(height: 4),
+            Text(
+              'Semangat menghafal hari ini!',
+              style: TextStyle(color: Colors.grey.shade600),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text("60% selesai", style: TextStyle(color: Colors.grey, fontSize: 12)),
-
-          const SizedBox(height: 24),
-
-          // ⚡ Quick Actions
-          const Text(
-            "Aksi Cepat",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // Tombol Setor -> Masuk Video Call Murid
-              _buildQuickActionButton(Icons.video_call, "Setor", () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VideoCallScreen(role: 'Murid')),
-                );
-              }),
-              
-              // Tombol Chat -> Masuk Chat Detail Murid
-              _buildQuickActionButton(Icons.chat, "Chat", () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ChatPage(role: 'Murid')),
-                );
-              }),
-              
-              // Tombol Jadwal -> Masuk Placeholder
-              _buildQuickActionButton(Icons.calendar_month, "Jadwal", () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: 'Jadwal Setoran')),
-                );
-              }),
+            if (data.halaqohNama.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                '${data.halaqohNama} • ${data.guruNama}',
+                style: TextStyle(color: Colors.teal.shade700, fontSize: 13),
+              ),
             ],
-          ),
-
-          const SizedBox(height: 32),
-
-          // 🕒 Riwayat Terakhir
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Riwayat Terakhir",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            const SizedBox(height: 24),
+            const Text(
+              'Progress Hafalan (Juz 30)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: data.progressPercent / 100,
+                minHeight: 12,
+                backgroundColor: Colors.teal.shade100,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
               ),
-              TextButton(
-                onPressed: () {
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${data.progressPercent}% selesai',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Aksi Cepat',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildQuickActionButton(Icons.video_call, 'Setor', () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: 'Semua Riwayat')),
+                    MaterialPageRoute(
+                      builder: (context) => const VideoCallScreen(role: 'Murid'),
+                    ),
                   );
-                },
-                child: const Text("Lihat Semua", style: TextStyle(color: Colors.teal)),
-              ),
-            ],
-          ),
-          
-          // List Riwayat (Bisa diklik -> Placeholder)
-          _buildHistoryTile(context, "Setor Al-Baqarah 1-5", "Kemarin", Icons.check_circle, Colors.green),
-          _buildHistoryTile(context, "Murajaah An-Nas", "2 hari lalu", Icons.check_circle, Colors.green),
-          _buildHistoryTile(context, "Setor Al-Fatihah", "3 hari lalu", Icons.access_time_filled, Colors.orange),
-        ],
+                }),
+                _buildQuickActionButton(Icons.chat, 'Chat', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ChatPage(role: 'Murid'),
+                    ),
+                  );
+                }),
+                _buildQuickActionButton(Icons.calendar_month, 'Jadwal', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => JadwalPage(
+                        jadwal: data.jadwal,
+                        halaqohNama: data.halaqohNama,
+                        guruNama: data.guruNama,
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Riwayat Terakhir',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RiwayatListPage(items: data.riwayat),
+                      ),
+                    );
+                  },
+                  child: const Text('Lihat Semua', style: TextStyle(color: Colors.teal)),
+                ),
+              ],
+            ),
+            if (data.riwayat.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Belum ada riwayat mutabaah', style: TextStyle(color: Colors.grey)),
+              )
+            else
+              ...data.riwayat.take(3).map(
+                    (item) => _buildHistoryTile(
+                      item.judul,
+                      item.tanggalLabel.isNotEmpty ? item.tanggalLabel : item.noteDisplay,
+                    ),
+                  ),
+          ],
+        ),
       ),
     );
   }
 
-  // Fungsi Bantuan untuk Tombol Bulat
   Widget _buildQuickActionButton(IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -151,7 +200,7 @@ class HomePage extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: Colors.teal.withOpacity(0.15),
+            backgroundColor: Colors.teal.withValues(alpha: 0.15),
             child: Icon(icon, color: Colors.teal, size: 28),
           ),
           const SizedBox(height: 8),
@@ -161,8 +210,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // Fungsi Bantuan untuk List Riwayat
-  Widget _buildHistoryTile(BuildContext context, String title, String subtitle, IconData icon, Color iconColor) {
+  Widget _buildHistoryTile(String title, String subtitle) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
@@ -171,18 +219,9 @@ class HomePage extends StatelessWidget {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: ListTile(
-        leading: Icon(icon, color: iconColor),
+        leading: const Icon(Icons.check_circle, color: Colors.green),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PlaceholderScreen(title: 'Detail: $title'),
-            ),
-          );
-        },
       ),
     );
   }

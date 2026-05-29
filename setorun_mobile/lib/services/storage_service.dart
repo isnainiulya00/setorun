@@ -45,6 +45,7 @@ class StorageService {
           'name': user.halaqoh!.name,
           'nama': user.halaqoh!.name,
           'gender': user.halaqoh!.gender,
+          'jadwal': user.halaqoh!.jadwal,
           'guru_name': user.halaqoh!.guruName,
         },
     }));

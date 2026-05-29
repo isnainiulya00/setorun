@@ -12,9 +12,12 @@ class MutabaahNote(models.TextChoices):
     MURAJAAH = 'murajaah', "Muraja'ah"
 
 
-class AuthAccountMixin:
-    """Agar instance guru/murid kompatibel dengan DRF IsAuthenticated."""
+class SenderType(models.TextChoices):
+    GURU = 'guru', 'Guru'
+    MURID = 'murid', 'Murid'
 
+
+class AuthAccountMixin:
     @property
     def is_authenticated(self):
         return True
@@ -54,6 +57,7 @@ class Guru(AuthAccountMixin, models.Model):
 class Halaqoh(models.Model):
     nama = models.CharField(max_length=100)
     gender = models.CharField(max_length=10, choices=UserGender.choices)
+    jadwal = models.CharField(max_length=200, blank=True, default='')
     guru = models.OneToOneField(
         Guru,
         on_delete=models.CASCADE,
@@ -116,3 +120,45 @@ class Mutabaah(models.Model):
 
     def __str__(self):
         return f'{self.murid.nama} - {self.nama_surah}'
+
+
+class ChatRoom(models.Model):
+    murid = models.OneToOneField(
+        Murid,
+        on_delete=models.CASCADE,
+        related_name='chat_room',
+        db_column='murid_id',
+    )
+    halaqoh = models.ForeignKey(
+        Halaqoh,
+        on_delete=models.CASCADE,
+        related_name='chat_rooms',
+        db_column='halaqoh_id',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chat_room'
+
+    def __str__(self):
+        return f'Chat {self.murid.nama}'
+
+
+class ChatMessage(models.Model):
+    room = models.ForeignKey(
+        ChatRoom,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        db_column='room_id',
+    )
+    sender_type = models.CharField(max_length=10, choices=SenderType.choices)
+    sender_id = models.PositiveIntegerField()
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chat_message'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.sender_type}: {self.text[:30]}'

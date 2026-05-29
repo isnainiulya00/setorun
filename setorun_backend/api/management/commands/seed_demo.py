@@ -1,47 +1,80 @@
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
-from api.models import Guru, Halaqoh, Murid, UserGender
+from api.models import (
+    ChatRoom,
+    Guru,
+    Halaqoh,
+    Murid,
+    Mutabaah,
+    MutabaahNote,
+    UserGender,
+)
+from api.utils import get_or_create_chat_room
 
 
 class Command(BaseCommand):
-    help = 'Seed data demo guru, halaqoh, dan murid sesuai skema tabel'
+    help = 'Seed akun isna (guru) & ulyatul faizah (murid) + data demo'
 
     def handle(self, *args, **options):
-        guru, created = Guru.objects.get_or_create(
-            email='guru@setorun.id',
+        guru, created = Guru.objects.update_or_create(
+            email='isna@setorun.id',
             defaults={
-                'nama': 'Ustazah Isna',
+                'nama': 'isna',
                 'gender': UserGender.FEM,
             },
         )
-        if created:
-            guru.set_password('guru12345')
-            guru.save()
-            self.stdout.write(self.style.SUCCESS('Guru demo: guru@setorun.id / guru12345'))
-        else:
-            self.stdout.write('Guru demo sudah ada.')
+        guru.set_password('isna12345')
+        guru.save()
+        self.stdout.write(
+            self.style.SUCCESS('Guru isna: login "isna" atau isna@setorun.id / isna12345')
+        )
 
-        h1, _ = Halaqoh.objects.get_or_create(
+        halaqoh, _ = Halaqoh.objects.update_or_create(
             guru=guru,
             defaults={
                 'nama': 'Halaqoh Al-Fatih',
                 'gender': UserGender.FEM,
+                'jadwal': 'Senin & Rabu, 08:00–10:00 WIB',
             },
         )
 
-        murid, created = Murid.objects.get_or_create(
-            email='murid@setorun.id',
+        murid, _ = Murid.objects.update_or_create(
+            email='ulyatul@setorun.id',
             defaults={
-                'nama': 'Isnaini',
+                'nama': 'ulyatul faizah',
                 'gender': UserGender.FEM,
-                'halaqoh': h1,
+                'halaqoh': halaqoh,
             },
         )
-        if created:
-            murid.set_password('murid12345')
-            murid.save()
-            self.stdout.write(self.style.SUCCESS('Murid demo: murid@setorun.id / murid12345'))
-        else:
-            self.stdout.write('Murid demo sudah ada.')
+        murid.set_password('ulyatul12345')
+        murid.save()
+        self.stdout.write(
+            self.style.SUCCESS(
+                'Murid ulyatul faizah: login "ulyatul faizah" atau '
+                'ulyatul@setorun.id / ulyatul12345'
+            )
+        )
+
+        get_or_create_chat_room(murid)
+
+        Mutabaah.objects.get_or_create(
+            murid=murid,
+            nama_surah='Al-Baqarah',
+            ayat='1-5',
+            defaults={
+                'note': MutabaahNote.ZIYADAH,
+                'keterangan': 'Lancar, perlu perbaikan makhraj',
+            },
+        )
+        Mutabaah.objects.get_or_create(
+            murid=murid,
+            nama_surah='An-Nas',
+            ayat='1-6',
+            defaults={
+                'note': MutabaahNote.MURAJAAH,
+                'keterangan': 'Murajaah juz 30',
+            },
+        )
 
         self.stdout.write(self.style.SUCCESS('Seed selesai.'))

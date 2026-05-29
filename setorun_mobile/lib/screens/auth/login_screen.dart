@@ -176,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      labelText: 'Email',
+                      labelText: 'Email atau Nama',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -330,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: Text(
-                        'Guru: gunakan akun yang dibuat admin.\nMurid: daftar lewat "Daftar di sini".',
+                        'Guru: isna / isna@setorun.id\nMurid: ulyatul faizah / ulyatul@setorun.id',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),

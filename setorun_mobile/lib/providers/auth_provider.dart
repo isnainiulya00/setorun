@@ -81,6 +81,26 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfile({
+    String? fullName,
+    String? email,
+    String? gender,
+  }) async {
+    try {
+      user = await _authService.updateProfile(
+        fullName: fullName,
+        email: email,
+        gender: gender,
+      );
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      errorMessage = _authService.parseError(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await _authService.logout();
     user = null;
