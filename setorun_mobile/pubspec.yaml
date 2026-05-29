@@ -39,6 +39,7 @@ dependencies:
   dio: ^5.7.0
   shared_preferences: ^2.3.3
   provider: ^6.1.2
+  jitsi_meet_wrapper: ^0.2.0+1
 
 dev_dependencies:
   flutter_test:

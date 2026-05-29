@@ -58,25 +58,19 @@ class Halaqoh(models.Model):
     nama = models.CharField(max_length=100)
     gender = models.CharField(max_length=10, choices=UserGender.choices)
     jadwal = models.CharField(max_length=200, blank=True, default='')
-    guru = models.OneToOneField(
+    guru = models.ForeignKey(
         Guru,
         on_delete=models.CASCADE,
-        related_name='halaqoh',
+        related_name='halaqoh_list', 
         db_column='guru_id',
     )
-
-    class Meta:
-        db_table = 'halaqoh'
-
-    def __str__(self):
-        return self.nama
-
 
 class Murid(AuthAccountMixin, models.Model):
     nama = models.CharField(max_length=100)
     gender = models.CharField(max_length=10, choices=UserGender.choices)
     email = models.EmailField(max_length=100, unique=True)
     password_2 = models.CharField(max_length=255)
+    status_join = models.CharField(max_length=20, default='pending')
     halaqoh = models.ForeignKey(
         Halaqoh,
         on_delete=models.SET_NULL,
@@ -85,7 +79,7 @@ class Murid(AuthAccountMixin, models.Model):
         related_name='murid_list',
         db_column='halaqoh_id',
     )
-
+    
     class Meta:
         db_table = 'murid'
 
@@ -99,7 +93,6 @@ class Murid(AuthAccountMixin, models.Model):
     @property
     def is_student(self):
         return True
-
 
 class Mutabaah(models.Model):
     murid = models.ForeignKey(

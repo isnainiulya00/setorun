@@ -1,7 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:jitsi_meet_wrapper/jitsi_meet_wrapper.dart'; 
 
 class VideoCallScreen extends StatelessWidget {
   const VideoCallScreen({super.key});
+
+  void _startJitsiCall() async {
+    try {
+      String roomName = "setorun-halaqah-ahmad-12345"; 
+
+      var options = JitsiMeetingOptions(
+        roomNameOrUrl: roomName,
+        userDisplayName: "Nama Murid", 
+        userEmail: "murid@setorun.com",
+        isAudioMuted: false,
+        isVideoMuted: false,
+      );
+
+      await JitsiMeetWrapper.joinMeeting(options: options);
+    } catch (error) {
+      debugPrint("Gagal masuk Jitsi: $error");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,12 +42,12 @@ class VideoCallScreen extends StatelessWidget {
           ),
 
           // 📍 Info
-          Positioned(
+          const Positioned(
             top: 20,
             left: 20,
             child: Text(
               "Terhubung dengan Ustadz Ahmad",
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),
 
@@ -40,8 +59,13 @@ class VideoCallScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildButton(Icons.mic, "Mic"),
-                _buildButton(Icons.videocam, "Camera"),
+                _buildButton(Icons.mic, "Mic", () {}),
+                
+                // 👇 Tombol kamera ini sekarang bisa diklik untuk masuk ke panggilan Jitsi asli!
+                _buildButton(Icons.video_call, "Masuk Jitsi", () {
+                  _startJitsiCall(); 
+                }),
+                
                 _buildEndCallButton(context),
               ],
             ),
@@ -51,17 +75,22 @@ class VideoCallScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(IconData icon, String label) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: Colors.white24,
-          child: Icon(icon, color: Colors.white),
-        ),
-        const SizedBox(height: 5),
-        Text(label, style: const TextStyle(color: Colors.white)),
-      ],
+  // Menambahkan parameter VoidCallback agar tombolnya bisa menerima perintah klik
+  Widget _buildButton(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.white24,
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(height: 5),
+          Text(label, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
     );
   }
 
