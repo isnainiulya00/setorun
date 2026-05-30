@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
@@ -9,10 +10,7 @@ from .utils import find_account_by_login
 
 def email_exists(email):
     normalized = email.lower()
-    return (
-        Guru.objects.filter(email__iexact=normalized).exists()
-        or Murid.objects.filter(email__iexact=normalized).exists()
-    )
+    return User.objects.filter(email__iexact=normalized).exists()
 
 
 class HalaqohSerializer(serializers.ModelSerializer):
@@ -38,16 +36,15 @@ class AccountSerializer(serializers.Serializer):
     @staticmethod
     def from_account(account):
         role = get_account_role(account)
+        
         halaqoh = getattr(account, 'halaqoh', None)
-        if isinstance(account, Guru):
-            try:
-                halaqoh = account.halaqoh
-            except Halaqoh.DoesNotExist:
-                halaqoh = None
+        
+        if hasattr(account, 'is_teacher') and account.is_teacher:
+            halaqoh = account.halaqoh_list.first()
 
         return {
             'id': account.pk,
-            'email': account.email,
+            'email': account.user.email,  
             'full_name': account.nama,
             'nama': account.nama,
             'gender': account.gender,
@@ -82,14 +79,18 @@ class MuridRegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        murid = Murid(
+        user = User.objects.create_user(
+            username=validated_data['email'], 
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
+        # PERUBAHAN: Baru bikin profil muridnya
+        murid = Murid.objects.create(
+            user=user,
             nama=validated_data['full_name'].strip(),
             gender=validated_data['gender'],
-            email=validated_data['email'],
             halaqoh=validated_data['halaqoh'],
         )
-        murid.set_password(validated_data['password'])
-        murid.save()
         return murid
 
 
@@ -103,7 +104,7 @@ class LoginSerializer(serializers.Serializer):
         password = attrs['password']
         account = find_account_by_login(login_value)
 
-        if account is None or not account.check_password(password):
+        if account is None or not account.user.check_password(password):
             raise serializers.ValidationError(
                 {'detail': 'Email/nama atau kata sandi salah.'}
             )
@@ -122,7 +123,7 @@ class ProfileUpdateSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         instance = self.context['account']
-        if email_exists(value) and instance.email.lower() != value.lower():
+        if email_exists(value) and instance.user.email.lower() != value.lower():
             raise serializers.ValidationError('Email sudah digunakan.')
         return value.lower()
 
@@ -133,7 +134,9 @@ class ProfileUpdateSerializer(serializers.Serializer):
 
         email = validated_data.get('email')
         if email is not None:
-            instance.email = email.lower()
+            instance.user.email = email.lower()
+            instance.user.username = email.lower()
+            instance.user.save()
 
         if 'gender' in validated_data:
             instance.gender = validated_data['gender']
@@ -200,6 +203,8 @@ class MutabaahCreateUpdateSerializer(serializers.ModelSerializer):
 
 
 class MuridBriefSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(source='user.email', read_only=True)
+    
     class Meta:
         model = Murid
         fields = ['id', 'nama', 'email', 'gender']
@@ -227,13 +232,15 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     def get_is_me(self, obj):
         request = self.context.get('request')
-        if not request or not request.user:
+        if not request or not request.user or not request.user.is_authenticated:
             return False
-        user = request.user
-        if isinstance(user, Guru):
-            return obj.sender_type == 'guru' and obj.sender_id == user.pk
-        if isinstance(user, Murid):
-            return obj.sender_type == 'murid' and obj.sender_id == user.pk
+        
+        user = request.user  
+        
+        if hasattr(user, 'guru_profile'):
+            return obj.sender_type == 'guru' and obj.sender_id == user.guru_profile.pk
+        elif hasattr(user, 'murid_profile'):
+            return obj.sender_type == 'murid' and obj.sender_id == user.murid_profile.pk
         return False
 
     def get_sender_name(self, obj):

@@ -5,8 +5,13 @@ from .models import ChatMessage, ChatRoom, Guru, Halaqoh, Murid, Mutabaah
 
 @admin.register(Guru)
 class GuruAdmin(admin.ModelAdmin):
-    list_display = ['nama', 'email', 'gender']
-    search_fields = ['nama', 'email']
+    list_display = ['nama', 'get_email', 'gender']
+    search_fields = ['nama', 'user__email']
+
+    def get_email(self, obj):
+        return obj.user.email if obj.user else '-'
+    get_email.short_description = 'Email'
+    get_email.admin_order_field = 'user__email'
 
 
 @admin.register(Halaqoh)
@@ -17,9 +22,14 @@ class HalaqohAdmin(admin.ModelAdmin):
 
 @admin.register(Murid)
 class MuridAdmin(admin.ModelAdmin):
-    list_display = ['nama', 'email', 'gender', 'halaqoh']
+    list_display = ['nama', 'get_email', 'gender', 'halaqoh']
     list_filter = ['gender', 'halaqoh']
-    search_fields = ['nama', 'email']
+    search_fields = ['nama', 'user__email']
+
+    def get_email(self, obj):
+        return obj.user.email if obj.user else '-'
+    get_email.short_description = 'Email'
+    get_email.admin_order_field = 'user__email'
 
 
 @admin.register(Mutabaah)

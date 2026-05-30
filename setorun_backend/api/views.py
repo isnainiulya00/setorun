@@ -1,6 +1,10 @@
 from rest_framework import generics, permissions, status
-from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from .models import Guru, Halaqoh
+
 
 from .models import ChatMessage, ChatRoom, Guru, Halaqoh, Murid, Mutabaah, SenderType
 from .serializers import (
@@ -17,6 +21,14 @@ from .serializers import (
     ProfileUpdateSerializer,
 )
 from .utils import find_account_by_login, get_guru_halaqoh, get_or_create_chat_room
+
+
+def get_user_profile(user):
+    if hasattr(user, 'guru_profile'):
+        return user.guru_profile
+    if hasattr(user, 'murid_profile'):
+        return user.murid_profile
+    return None
 
 
 class LoginView(APIView):
@@ -44,7 +56,8 @@ class StudentRegisterView(generics.CreateAPIView):
         get_or_create_chat_room(murid)
         login = LoginSerializer(
             data={
-                'login': murid.email,
+                # PERUBAHAN: email sekarang ada di murid.user.email
+                'login': murid.user.email, 
                 'password': request.data.get('password'),
             }
         )
@@ -69,16 +82,18 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        return Response(AccountSerializer.from_account(request.user))
+        profile = get_user_profile(request.user)
+        return Response(AccountSerializer.from_account(profile))
 
     def patch(self, request):
+        profile = get_user_profile(request.user)
         serializer = ProfileUpdateSerializer(
             data=request.data,
             partial=True,
-            context={'account': request.user},
+            context={'account': profile},
         )
         serializer.is_valid(raise_exception=True)
-        account = serializer.update(request.user, serializer.validated_data)
+        account = serializer.update(profile, serializer.validated_data)
         return Response(AccountSerializer.from_account(account))
 
 
@@ -86,13 +101,13 @@ class MyHalaqohView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        account = request.user
+        profile = get_user_profile(request.user)
         halaqoh = None
 
-        if isinstance(account, Murid):
-            halaqoh = account.halaqoh
-        elif isinstance(account, Guru):
-            halaqoh = get_guru_halaqoh(account)
+        if hasattr(request.user, 'murid_profile'):
+            halaqoh = profile.halaqoh
+        elif hasattr(request.user, 'guru_profile'):
+            halaqoh = get_guru_halaqoh(profile)
 
         if halaqoh is None:
             return Response(
@@ -112,10 +127,10 @@ class MuridHomeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if not isinstance(request.user, Murid):
+        if not hasattr(request.user, 'murid_profile'):
             return Response({'detail': 'Hanya untuk murid.'}, status=403)
 
-        murid = request.user
+        murid = request.user.murid_profile
         halaqoh = murid.halaqoh
         mutabaah_qs = Mutabaah.objects.filter(murid=murid).order_by('-tanggal')[:10]
         riwayat = MutabaahSerializer(mutabaah_qs, many=True).data
@@ -136,24 +151,25 @@ class MutabaahListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        if isinstance(user, Murid):
-            qs = Mutabaah.objects.filter(murid=user).select_related('murid')
-        elif isinstance(user, Guru):
-            halaqoh = get_guru_halaqoh(user)
+        if hasattr(request.user, 'murid_profile'):
+            qs = Mutabaah.objects.filter(murid=request.user.murid_profile).select_related('murid')
+        elif hasattr(request.user, 'guru_profile'):
+            halaqoh = get_guru_halaqoh(request.user.guru_profile)
             if not halaqoh:
                 return Response([])
             qs = Mutabaah.objects.filter(murid__halaqoh=halaqoh).select_related('murid')
         else:
             return Response([])
+            
         serializer = MutabaahSerializer(qs.order_by('-tanggal'), many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        if not isinstance(request.user, Guru):
+        if not hasattr(request.user, 'guru_profile'):
             return Response({'detail': 'Hanya guru yang dapat menambah mutabaah.'}, status=403)
 
-        halaqoh = get_guru_halaqoh(request.user)
+        guru = request.user.guru_profile
+        halaqoh = get_guru_halaqoh(guru)
         if not halaqoh:
             return Response({'detail': 'Guru belum punya halaqoh.'}, status=400)
 
@@ -184,9 +200,10 @@ class MutabaahDetailView(APIView):
         return obj
 
     def patch(self, request, pk):
-        if not isinstance(request.user, Guru):
+        if not hasattr(request.user, 'guru_profile'):
             return Response({'detail': 'Hanya guru.'}, status=403)
-        obj = self.get_object(pk, request.user)
+            
+        obj = self.get_object(pk, request.user.guru_profile)
         if not obj:
             return Response({'detail': 'Tidak ditemukan.'}, status=404)
         serializer = MutabaahCreateUpdateSerializer(obj, data=request.data, partial=True)
@@ -195,9 +212,10 @@ class MutabaahDetailView(APIView):
         return Response(MutabaahSerializer(mutabaah).data)
 
     def delete(self, request, pk):
-        if not isinstance(request.user, Guru):
+        if not hasattr(request.user, 'guru_profile'):
             return Response({'detail': 'Hanya guru.'}, status=403)
-        obj = self.get_object(pk, request.user)
+            
+        obj = self.get_object(pk, request.user.guru_profile)
         if not obj:
             return Response({'detail': 'Tidak ditemukan.'}, status=404)
         obj.delete()
@@ -208,9 +226,10 @@ class GuruMuridListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if not isinstance(request.user, Guru):
+        if not hasattr(request.user, 'guru_profile'):
             return Response({'detail': 'Hanya guru.'}, status=403)
-        halaqoh = get_guru_halaqoh(request.user)
+            
+        halaqoh = get_guru_halaqoh(request.user.guru_profile)
         if not halaqoh:
             return Response([])
         murid_list = Murid.objects.filter(halaqoh=halaqoh).order_by('nama')
@@ -221,10 +240,10 @@ class ChatConversationListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if not isinstance(request.user, Guru):
+        if not hasattr(request.user, 'guru_profile'):
             return Response({'detail': 'Hanya guru.'}, status=403)
 
-        halaqoh = get_guru_halaqoh(request.user)
+        halaqoh = get_guru_halaqoh(request.user.guru_profile)
         if not halaqoh:
             return Response([])
 
@@ -250,11 +269,12 @@ class ChatMessageListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_room(self, request, murid_id=None):
-        user = request.user
-        if isinstance(user, Murid):
-            return get_or_create_chat_room(user)
-        if isinstance(user, Guru) and murid_id:
-            halaqoh = get_guru_halaqoh(user)
+        if hasattr(request.user, 'murid_profile'):
+            return get_or_create_chat_room(request.user.murid_profile)
+            
+        if hasattr(request.user, 'guru_profile') and murid_id:
+            guru = request.user.guru_profile
+            halaqoh = get_guru_halaqoh(guru)
             if not halaqoh:
                 return None
             try:
@@ -290,23 +310,25 @@ class ChatSendView(APIView):
         serializer = ChatSendSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         text = serializer.validated_data['text']
-        user = request.user
 
-        if isinstance(user, Murid):
-            room = get_or_create_chat_room(user)
+        if hasattr(request.user, 'murid_profile'):
+            murid = request.user.murid_profile
+            room = get_or_create_chat_room(murid)
             if not room:
                 return Response({'detail': 'Murid belum terdaftar halaqoh.'}, status=400)
             msg = ChatMessage.objects.create(
                 room=room,
                 sender_type=SenderType.MURID,
-                sender_id=user.pk,
+                sender_id=murid.pk,
                 text=text,
             )
-        elif isinstance(user, Guru):
+        elif hasattr(request.user, 'guru_profile'):
+            guru = request.user.guru_profile
             murid_id = serializer.validated_data.get('murid_id')
             if not murid_id:
                 return Response({'detail': 'murid_id wajib untuk guru.'}, status=400)
-            halaqoh = get_guru_halaqoh(user)
+            
+            halaqoh = get_guru_halaqoh(guru)
             try:
                 murid = Murid.objects.get(pk=murid_id, halaqoh=halaqoh)
             except Murid.DoesNotExist:
@@ -315,7 +337,7 @@ class ChatSendView(APIView):
             msg = ChatMessage.objects.create(
                 room=room,
                 sender_type=SenderType.GURU,
-                sender_id=user.pk,
+                sender_id=guru.pk,
                 text=text,
             )
         else:
@@ -325,3 +347,38 @@ class ChatSendView(APIView):
             ChatMessageSerializer(msg, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+class CreateHalaqohView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        guru = Guru.objects.filter(user=request.user).first()
+        if not guru:
+            return Response(
+                {'error': 'Akses ditolak. Hanya Guru yang dapat membuat Halaqah.'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+
+        nama = request.data.get('nama')
+        jadwal = request.data.get('jadwal', '')
+
+        if not nama:
+            return Response(
+                {'error': 'Nama halaqah wajib diisi.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        halaqoh = Halaqoh.objects.create(
+            nama=nama,
+            jadwal=jadwal,
+            guru=guru,
+            gender=guru.gender 
+        )
+
+        return Response({
+            'message': 'Halaqah berhasil dibuat!',
+            'halaqoh_id': halaqoh.id,
+            'nama': halaqoh.nama,
+            'gender': halaqoh.gender
+        }, status=status.HTTP_201_CREATED)

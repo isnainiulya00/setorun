@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     _isLogin
                         ? 'Hafalan dari mana saja'
-                        : 'Daftar sebagai murid (guru dibuat admin)',
+                        : 'Daftar sebagai murid',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
@@ -172,22 +172,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
 
+                  // --- BAGIAN YANG DIPERBAIKI ---
                   TextFormField(
                     controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    keyboardType: TextInputType.text, // Keyboard jadi text biasa
                     decoration: InputDecoration(
-                      labelText: 'Email atau Nama',
+                      labelText: 'Email atau Username', // Ganti label
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      prefixIcon: const Icon(Icons.person_outline), // Ganti icon orang
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
-                      if (!v.contains('@')) return 'Format email tidak valid';
-                      return null;
+                      if (v == null || v.trim().isEmpty) return 'Email atau Username wajib diisi';
+                      // Validasi .contains('@') dihapus agar username bisa lolos!
+                      return null; 
                     },
                   ),
+                  // ------------------------------
+                  
                   const SizedBox(height: 16),
 
                   TextFormField(
@@ -325,16 +328,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-
-                  if (_isLogin)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Guru: isna / isna@setorun.id\nMurid: ulyatul faizah / ulyatul@setorun.id',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ),
                 ],
               ),
             ),

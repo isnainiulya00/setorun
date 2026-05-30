@@ -4,19 +4,19 @@ from .models import ChatRoom, Guru, Halaqoh, Murid
 
 
 def find_account_by_login(login_value):
-    """Cari akun guru/murid berdasarkan email atau nama."""
+    """Cari akun guru/murid berdasarkan email/username (di Django User) atau nama."""
     login = login_value.strip()
     if not login:
         return None
 
-    account = Guru.objects.select_related('halaqoh').filter(
-        Q(email__iexact=login) | Q(nama__iexact=login)
+    account = Guru.objects.filter(
+        Q(user__email__iexact=login) | Q(user__username__iexact=login) | Q(nama__iexact=login)
     ).first()
     if account:
         return account
 
     return Murid.objects.select_related('halaqoh', 'halaqoh__guru').filter(
-        Q(email__iexact=login) | Q(nama__iexact=login)
+        Q(user__email__iexact=login) | Q(user__username__iexact=login) | Q(nama__iexact=login)
     ).first()
 
 
@@ -31,7 +31,4 @@ def get_or_create_chat_room(murid):
 
 
 def get_guru_halaqoh(guru):
-    try:
-        return guru.halaqoh
-    except Halaqoh.DoesNotExist:
-        return None
+    return guru.halaqoh_list.first()

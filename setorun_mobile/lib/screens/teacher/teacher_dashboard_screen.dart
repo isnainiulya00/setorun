@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'fill_mutabaah_screen.dart';
-import '../shared/quran_page.dart'; // Import halaman Quran yang sudah dibuat
-import '../shared/chat_page.dart'; // Import halaman Chat yang sudah dibuat
-import '../shared/profile_page.dart'; // Import halaman Profil yang sudah dibuat
-import '../shared/video_call_screen.dart'; // Import halaman VideoCall yang sudah dibuat
+import '../shared/quran_page.dart';
+import '../shared/chat_page.dart';
+import '../shared/profile_page.dart';
+import '../shared/video_call_screen.dart';
+import '../../providers/auth_provider.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -15,14 +17,12 @@ class TeacherDashboardScreen extends StatefulWidget {
 class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   int _selectedIndex = 0;
 
-  // Daftar halaman yang akan ditampilkan sesuai index menu bawah
-final List<Widget> _pages = [
-  const TeacherHomeContent(),
-  const ChatPage(role: "Guru"),    // Ganti Center tadi dengan ini
-  const QuranPage(),
-  const ProfilePage(role: 'Guru'), // Kirim data role ke ProfilePage
-  const VideoCallScreen(role: "Guru"), // Tambahkan halaman VideoCallScreen
-];
+  final List<Widget> _pages = [
+    const TeacherHomeContent(),
+    const ChatPage(role: "Guru"),
+    const QuranPage(),
+    const ProfilePage(role: 'Guru'),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -33,9 +33,7 @@ final List<Widget> _pages = [
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Body akan berubah sesuai tab yang dipilih
-      body: _pages[_selectedIndex], 
-      
+      body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
@@ -45,7 +43,7 @@ final List<Widget> _pages = [
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Quran'), // Tambahkan icon Quran
+          BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Quran'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
         ],
       ),
@@ -53,7 +51,6 @@ final List<Widget> _pages = [
   }
 }
 
-// --- PINDAHKAN ISI KONTEN DASHBOARD KE SINI ---
 class TeacherHomeContent extends StatefulWidget {
   const TeacherHomeContent({super.key});
 
@@ -70,6 +67,9 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final namaGuru = auth.user?.fullName ?? 'Guru';
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -80,11 +80,13 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Assalamu\'alaikum, Isna 👋', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text('Semangat mengajar hari ini!', style: TextStyle(color: Colors.grey)),
+                    Text('Assalamu\'alaikum, $namaGuru 👋', 
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const Text('Semangat mengajar hari ini!', 
+                        style: TextStyle(color: Colors.grey)),
                   ],
                 ),
                 const CircleAvatar(backgroundColor: Colors.teal, child: Icon(Icons.person, color: Colors.white)),
@@ -92,7 +94,7 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
             ),
             const SizedBox(height: 24),
 
-            // Statistik
+            // Statistik (Tetap mockup/hardcode sementara)
             Row(
               children: [
                 Expanded(child: _buildStatCard('Total Kelas', '3', Icons.class_)),
@@ -102,49 +104,22 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
             ),
             const SizedBox(height: 24),
 
-        
-           // Aksi Cepat
+            // Aksi Cepat
             const Text('Aksi Cepat', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // 1. Tombol Buka Kelas (Video Call)
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const VideoCallScreen(role: "Guru"),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VideoCallScreen(role: "Guru"))),
                   child: _buildQuickAction(Icons.video_call, 'Buka Kelas'),
                 ),
-
-                // 2. Tombol Isi Mutaba'ah
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FillMutabaahScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FillMutabaahScreen())),
                   child: _buildQuickAction(Icons.edit_document, 'Isi Mutaba\'ah'),
                 ),
-
-                // 3. Tombol Chat Murid
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ChatPage(role: 'Guru'),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatPage(role: 'Guru'))),
                   child: _buildQuickAction(Icons.chat, 'Chat Murid'),
                 ),
               ],
@@ -165,9 +140,7 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
                     title: Text(pendingTasks[index]['nama']!, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('${pendingTasks[index]['surah']!} • ${pendingTasks[index]['waktu']!}'),
                     trailing: ElevatedButton(
-                      onPressed: () {
-                        setState(() => pendingTasks.removeAt(index));
-                      },
+                      onPressed: () => setState(() => pendingTasks.removeAt(index)),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
                       child: const Text('Setujui'),
                     ),
@@ -181,7 +154,6 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
     );
   }
 
-  // Widget pendukung (StatCard & QuickAction) tetap sama seperti sebelumnya
   Widget _buildStatCard(String title, String count, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),

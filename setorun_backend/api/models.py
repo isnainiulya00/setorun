@@ -1,4 +1,4 @@
-from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.models import User
 from django.db import models
 
 
@@ -17,27 +17,11 @@ class SenderType(models.TextChoices):
     MURID = 'murid', 'Murid'
 
 
-class AuthAccountMixin:
-    @property
-    def is_authenticated(self):
-        return True
 
-    @property
-    def is_anonymous(self):
-        return False
-
-    def set_password(self, raw_password):
-        self.password_2 = make_password(raw_password)
-
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password_2)
-
-
-class Guru(AuthAccountMixin, models.Model):
+class Guru(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='guru_profile')
     nama = models.CharField(max_length=100)
     gender = models.CharField(max_length=10, choices=UserGender.choices)
-    email = models.EmailField(max_length=100, unique=True)
-    password_2 = models.CharField(max_length=255)
 
     class Meta:
         db_table = 'guru'
@@ -64,12 +48,14 @@ class Halaqoh(models.Model):
         related_name='halaqoh_list', 
         db_column='guru_id',
     )
+    class Meta:
+        db_table = 'halaqoh'
 
-class Murid(AuthAccountMixin, models.Model):
+
+class Murid(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='murid_profile')
     nama = models.CharField(max_length=100)
     gender = models.CharField(max_length=10, choices=UserGender.choices)
-    email = models.EmailField(max_length=100, unique=True)
-    password_2 = models.CharField(max_length=255)
     status_join = models.CharField(max_length=20, default='pending')
     halaqoh = models.ForeignKey(
         Halaqoh,
@@ -93,6 +79,7 @@ class Murid(AuthAccountMixin, models.Model):
     @property
     def is_student(self):
         return True
+
 
 class Mutabaah(models.Model):
     murid = models.ForeignKey(
