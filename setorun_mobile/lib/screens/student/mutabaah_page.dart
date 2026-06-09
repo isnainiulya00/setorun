@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../models/mutabaah_model.dart';
@@ -16,26 +18,39 @@ class _MutabaahPageState extends State<MutabaahPage> {
   late final MutabaahService _service;
   List<MutabaahModel> _items = [];
   bool _loading = true;
+  String? _error;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _service = MutabaahService(ApiClient(StorageService()));
     _load();
+    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => _load(silent: true));
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
       final items = await _service.fetchList();
       if (!mounted) return;
       setState(() {
         _items = items;
         _loading = false;
+        _error = null;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        if (!silent) _error = e.toString();
+      });
     }
   }
 
@@ -49,7 +64,27 @@ class _MutabaahPageState extends State<MutabaahPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-          : RefreshIndicator(
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Gagal memuat mutabaah'),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: _load, child: const Text('Coba lagi')),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
               onRefresh: _load,
               color: Colors.teal,
               child: _items.isEmpty

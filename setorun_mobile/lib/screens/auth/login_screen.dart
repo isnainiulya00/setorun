@@ -35,6 +35,18 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  List<HalaqohModel> get _filteredHalaqohList =>
+      _halaqohList.where((h) => h.gender == _selectedGender).toList();
+
+  void _syncHalaqohSelection() {
+    final filtered = _filteredHalaqohList;
+    if (filtered.isEmpty) {
+      _selectedHalaqohId = null;
+    } else if (!filtered.any((h) => h.id == _selectedHalaqohId)) {
+      _selectedHalaqohId = filtered.first.id;
+    }
+  }
+
   Future<void> _loadHalaqohIfNeeded() async {
     if (_halaqohList.isNotEmpty || _loadingHalaqoh) return;
     setState(() => _loadingHalaqoh = true);
@@ -43,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _halaqohList = list;
-        if (list.isNotEmpty) _selectedHalaqohId = list.first.id;
+        _syncHalaqohSelection();
       });
     } catch (_) {
       if (!mounted) return;
@@ -167,7 +179,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         DropdownMenuItem(value: 'fem', child: Text('Perempuan')),
                         DropdownMenuItem(value: 'male', child: Text('Laki-laki')),
                       ],
-                      onChanged: (v) => setState(() => _selectedGender = v!),
+                      onChanged: (v) => setState(() {
+                        _selectedGender = v!;
+                        _syncHalaqohSelection();
+                      }),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -239,6 +254,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     if (_loadingHalaqoh)
                       const Center(child: CircularProgressIndicator())
+                    else if (_filteredHalaqohList.isEmpty)
+                      const Text(
+                        'Belum ada halaqoh untuk jenis kelamin ini.',
+                        style: TextStyle(color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      )
                     else
                       DropdownButtonFormField<int>(
                         initialValue: _selectedHalaqohId,
@@ -249,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           prefixIcon: const Icon(Icons.groups_outlined),
                         ),
-                        items: _halaqohList
+                        items: _filteredHalaqohList
                             .map(
                               (h) => DropdownMenuItem(
                                 value: h.id,

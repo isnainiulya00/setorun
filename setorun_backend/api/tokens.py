@@ -10,13 +10,17 @@ def get_tokens_for_account(account):
         user_type = USER_TYPE_MURID
 
     refresh = RefreshToken.for_user(account.user)
-    
+
     refresh['user_type'] = user_type
-    refresh['profile_id'] = account.pk  
+    refresh['profile_id'] = account.pk
     refresh['email'] = account.user.email
     refresh['nama'] = account.nama
 
+    access = refresh.access_token
+    access['user_type'] = user_type
+    access['profile_id'] = account.pk
+
     return {
         'refresh': str(refresh),
-        'access': str(refresh.access_token),
+        'access': str(access),
     }

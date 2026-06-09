@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart'; 
 import 'fill_mutabaah_screen.dart';
 import '../shared/quran_page.dart';
 import '../shared/chat_page.dart';
@@ -19,9 +20,28 @@ class TeacherDashboardScreen extends StatefulWidget {
 
 class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   int _selectedIndex = 0;
+  int _pendingCount = 0;
 
-  final List<Widget> _pages = [
-    const TeacherHomeContent(),
+  late final List<Widget> _pages = [
+    TeacherHomeContent(
+      onPendingCountChanged: (count) {
+        if (mounted) setState(() => _pendingCount = count);
+      },
+      onNewPendingMurid: (nama) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Murid baru mendaftar: $nama'),
+            backgroundColor: Colors.orange.shade800,
+            action: SnackBarAction(
+              label: 'Lihat',
+              textColor: Colors.white,
+              onPressed: () => setState(() => _selectedIndex = 0),
+            ),
+          ),
+        );
+      },
+    ),
     const ChatPage(role: "Guru"),
     const QuranPage(),
     const ProfilePage(role: 'Guru'),
@@ -43,11 +63,19 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Quran'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
+        items: [
+          BottomNavigationBarItem(
+            icon: _pendingCount > 0
+                ? Badge(
+                    label: Text('$_pendingCount'),
+                    child: const Icon(Icons.home),
+                  )
+                : const Icon(Icons.home),
+            label: 'Home',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          const BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Quran'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
         ],
       ),
     );
@@ -55,41 +83,71 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 }
 
 class TeacherHomeContent extends StatefulWidget {
-  const TeacherHomeContent({super.key});
+  final ValueChanged<int>? onPendingCountChanged;
+  final ValueChanged<String>? onNewPendingMurid;
+
+  const TeacherHomeContent({
+    super.key,
+    this.onPendingCountChanged,
+    this.onNewPendingMurid,
+  });
 
   @override
   State<TeacherHomeContent> createState() => _TeacherHomeContentState();
 }
 
 class _TeacherHomeContentState extends State<TeacherHomeContent> {
-  // Variabel penampung data dari backend
   List<dynamic> _pendingMurid = [];
   bool _isLoading = true;
+  Timer? _pollTimer;
+  Set<int> _knownPendingIds = {};
 
   @override
   void initState() {
     super.initState();
-    _fetchPendingMurid(); 
+    _fetchPendingMurid();
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _fetchPendingMurid(silent: true);
+    });
   }
 
-  // Fungsi untuk mengambil data antrean dari Django
-  Future<void> _fetchPendingMurid() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchPendingMurid({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       final storage = StorageService();
       final apiClient = ApiClient(storage);
-      
+
       final response = await apiClient.dio.get('/halaqoh/pending-murid/');
-      
-      if (mounted) {
-        setState(() {
-          _pendingMurid = response.data;
-          _isLoading = false;
-        });
+      final list = List<dynamic>.from(response.data as List);
+
+      if (!mounted) return;
+
+      final newIds = list.map((m) => m['id'] as int).toSet();
+      if (_knownPendingIds.isNotEmpty) {
+        for (final murid in list) {
+          final id = murid['id'] as int;
+          if (!_knownPendingIds.contains(id)) {
+            widget.onNewPendingMurid?.call(murid['nama'] as String? ?? 'Murid');
+          }
+        }
       }
+      _knownPendingIds = newIds;
+
+      setState(() {
+        _pendingMurid = list;
+        _isLoading = false;
+      });
+      widget.onPendingCountChanged?.call(list.length);
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      if (!silent) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal memuat daftar antrean murid.')),
         );
@@ -190,6 +248,30 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
                 ],
               ),
               const SizedBox(height: 32),
+
+              if (_pendingMurid.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.notifications_active, color: Colors.orange.shade800),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${_pendingMurid.length} murid menunggu persetujuan bergabung ke halaqoh Anda.',
+                          style: TextStyle(color: Colors.orange.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // List Pending
               const Text('Menunggu Persetujuan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

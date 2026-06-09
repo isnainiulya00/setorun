@@ -63,11 +63,12 @@ class AuthService {
     required String passwordConfirm,
     required int halaqohId,
   }) async {
-    final response = await _api.dio.post('/auth/register/student/', data: {
+    final response = await _api.dio.post('/auth/register/', data: {
       'email': email,
-      'nama': fullName,
+      'full_name': fullName,
       'gender': gender,
       'password': password,
+      'password_confirm': passwordConfirm,
       'halaqoh_id': halaqohId,
     });
 

@@ -37,6 +37,10 @@ class Guru(models.Model):
     def is_student(self):
         return False
 
+    @property
+    def is_authenticated(self):
+        return True
+
 
 class Halaqoh(models.Model):
     nama = models.CharField(max_length=100)
@@ -78,6 +82,10 @@ class Murid(models.Model):
 
     @property
     def is_student(self):
+        return True
+
+    @property
+    def is_authenticated(self):
         return True
 
 

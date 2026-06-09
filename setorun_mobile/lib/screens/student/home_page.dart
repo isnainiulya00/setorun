@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../models/murid_home_model.dart';
 import '../../services/api_client.dart';
@@ -19,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   MuridHomeModel? _data;
   bool _loading = true;
   String? _error;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -26,22 +29,41 @@ class _HomePageState extends State<HomePage> {
     final storage = StorageService();
     _homeService = HomeService(ApiClient(storage));
     _load();
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _load(silent: true));
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final data = await _homeService.fetchMuridHome();
       if (!mounted) return;
+      final wasPending = _data?.statusJoin == 'pending';
       setState(() {
         _data = data;
         _loading = false;
+        _error = null;
       });
+      if (wasPending && data.statusJoin == 'approved' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selamat! Kamu sudah disetujui bergabung ke halaqoh.'),
+            backgroundColor: Colors.teal,
+          ),
+        );
+      }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -241,7 +263,7 @@ if (_error != null) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => RiwayatListPage(items: data.riwayat ?? []),
+                        builder: (context) => const RiwayatListPage(),
                       ),
                     );
                   },

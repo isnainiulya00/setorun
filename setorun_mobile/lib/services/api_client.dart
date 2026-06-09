@@ -7,7 +7,9 @@ class ApiClient {
   ApiClient(this._storage) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 10.141.128.3500/api,
+        baseUrl: ApiConfig.baseUrl.endsWith('/')
+            ? ApiConfig.baseUrl
+            : '${ApiConfig.baseUrl}/',
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         headers: {'Content-Type': 'application/json'},

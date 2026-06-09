@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .authentication import get_account_role
+from .authentication import get_account_role, get_user_profile
 from .models import ChatMessage, ChatRoom, Guru, Halaqoh, Murid, Mutabaah, MutabaahNote, UserGender
 from .tokens import get_tokens_for_account
 from .utils import find_account_by_login
@@ -75,6 +75,10 @@ class MuridRegisterSerializer(serializers.Serializer):
         if attrs['password'] != attrs.pop('password_confirm'):
             raise serializers.ValidationError(
                 {'password_confirm': 'Konfirmasi kata sandi tidak cocok.'}
+            )
+        if attrs['gender'] != attrs['halaqoh'].gender:
+            raise serializers.ValidationError(
+                {'halaqoh_id': 'Halaqoh tidak sesuai dengan jenis kelamin.'}
             )
         return attrs
 
@@ -176,9 +180,18 @@ class MutabaahSerializer(serializers.ModelSerializer):
 
 
 class MutabaahCreateUpdateSerializer(serializers.ModelSerializer):
-    ayat_mulai = serializers.IntegerField(write_only=True, required=False)
-    ayat_selesai = serializers.IntegerField(write_only=True, required=False)
+    ayat = serializers.CharField(required=False)
 
+    ayat_mulai = serializers.IntegerField(
+        write_only=True,
+        required=False
+    )
+
+    ayat_selesai = serializers.IntegerField(
+        write_only=True,
+        required=False
+    )
+    
     class Meta:
         model = Mutabaah
         fields = [
@@ -232,15 +245,14 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     def get_is_me(self, obj):
         request = self.context.get('request')
-        if not request or not request.user or not request.user.is_authenticated:
+        if not request or not request.user:
             return False
-        
-        user = request.user  
-        
-        if hasattr(user, 'guru_profile'):
-            return obj.sender_type == 'guru' and obj.sender_id == user.guru_profile.pk
-        elif hasattr(user, 'murid_profile'):
-            return obj.sender_type == 'murid' and obj.sender_id == user.murid_profile.pk
+
+        profile = get_user_profile(request.user)
+        if isinstance(profile, Guru):
+            return obj.sender_type == 'guru' and obj.sender_id == profile.pk
+        if isinstance(profile, Murid):
+            return obj.sender_type == 'murid' and obj.sender_id == profile.pk
         return False
 
     def get_sender_name(self, obj):
