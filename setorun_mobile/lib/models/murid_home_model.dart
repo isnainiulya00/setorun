@@ -2,6 +2,7 @@ import 'mutabaah_model.dart';
 
 class MuridHomeModel {
   final String nama;
+  final String statusJoin;
   final String halaqohNama;
   final String guruNama;
   final String jadwal;
@@ -10,6 +11,7 @@ class MuridHomeModel {
 
   const MuridHomeModel({
     required this.nama,
+    required this.statusJoin,
     required this.halaqohNama,
     required this.guruNama,
     required this.jadwal,
@@ -27,6 +29,7 @@ class MuridHomeModel {
 
     return MuridHomeModel(
       nama: json['nama'] as String? ?? '',
+      statusJoin: json['status_join'] as String? ?? '',
       halaqohNama: json['halaqoh_nama'] as String? ?? '',
       guruNama: json['guru_nama'] as String? ?? '',
       jadwal: json['jadwal'] as String? ?? '',

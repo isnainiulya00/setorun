@@ -1,20 +1,6 @@
 from django.urls import path
 
-from .views import (
-    ChatConversationListView,
-    ChatMessageListView,
-    ChatSendView,
-    GuruMuridListView,
-    HalaqohListView,
-    LoginView,
-    LogoutView,
-    MuridHomeView,
-    MutabaahDetailView,
-    MutabaahListCreateView,
-    MyHalaqohView,
-    ProfileView,
-    StudentRegisterView,
-)
+from .views import *
 
 urlpatterns = [
     path('auth/login/', LoginView.as_view(), name='auth-login'),
@@ -30,4 +16,6 @@ urlpatterns = [
     path('chat/conversations/', ChatConversationListView.as_view(), name='chat-conversations'),
     path('chat/messages/', ChatMessageListView.as_view(), name='chat-messages'),
     path('chat/send/', ChatSendView.as_view(), name='chat-send'),
+    path('halaqoh/pending-murid/', PendingMuridListView.as_view(), name='pending_murid'),
+    path('halaqoh/approve-murid/<int:murid_id>/', ApproveMuridView.as_view(), name='approve_murid'),
 ]
