@@ -60,7 +60,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Gagal memuat data home'),
+            const Text('Gagal memuat data home'),
             const SizedBox(height: 8),
             ElevatedButton(onPressed: _load, child: const Text('Coba lagi')),
           ],
@@ -80,7 +80,8 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Assalamu\'alaikum, ${data.nama} 👋',
+              // Pake fallback kalau nama null
+              'Assalamu\'alaikum, ${data.nama ?? 'Murid'} 👋',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
@@ -88,13 +89,16 @@ class _HomePageState extends State<HomePage> {
               'Semangat menghafal hari ini!',
               style: TextStyle(color: Colors.grey.shade600),
             ),
-            if (data.halaqohNama.isNotEmpty) ...[
+            
+            // Pengecekan halaqohNama secara aman
+            if ((data.halaqohNama ?? '').isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                '${data.halaqohNama} • ${data.guruNama}',
+                '${data.halaqohNama ?? 'Belum ada halaqah'} • ${data.guruNama ?? '-'}',
                 style: TextStyle(color: Colors.teal.shade700, fontSize: 13),
               ),
             ],
+            
             const SizedBox(height: 24),
             const Text(
               'Progress Hafalan (Juz 30)',
@@ -104,7 +108,8 @@ class _HomePageState extends State<HomePage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: data.progressPercent / 100,
+                // Pake fallback 0 kalau progress null
+                value: (data.progressPercent ?? 0) / 100,
                 minHeight: 12,
                 backgroundColor: Colors.teal.shade100,
                 valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
@@ -112,7 +117,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${data.progressPercent}% selesai',
+              '${data.progressPercent ?? 0}% selesai',
               style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
             const SizedBox(height: 24),
@@ -145,9 +150,10 @@ class _HomePageState extends State<HomePage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => JadwalPage(
-                        jadwal: data.jadwal,
-                        halaqohNama: data.halaqohNama,
-                        guruNama: data.guruNama,
+                        // Kasih string fallback biar JadwalPage gak crash
+                        jadwal: data.jadwal ?? 'Belum ada jadwal',
+                        halaqohNama: data.halaqohNama ?? 'Belum ada halaqah',
+                        guruNama: data.guruNama ?? '-',
                       ),
                     ),
                   );
@@ -167,7 +173,7 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => RiwayatListPage(items: data.riwayat),
+                        builder: (context) => RiwayatListPage(items: data.riwayat ?? []),
                       ),
                     );
                   },
@@ -175,16 +181,18 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            if (data.riwayat.isEmpty)
+            
+            // Pengecekan aman list riwayat
+            if ((data.riwayat ?? []).isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text('Belum ada riwayat mutabaah', style: TextStyle(color: Colors.grey)),
               )
             else
-              ...data.riwayat.take(3).map(
+              ...(data.riwayat ?? []).take(3).map(
                     (item) => _buildHistoryTile(
-                      item.judul,
-                      item.tanggalLabel.isNotEmpty ? item.tanggalLabel : item.noteDisplay,
+                      item.judul ?? 'Tanpa Judul',
+                      (item.tanggalLabel ?? '').isNotEmpty ? item.tanggalLabel! : (item.noteDisplay ?? '-'),
                     ),
                   ),
           ],

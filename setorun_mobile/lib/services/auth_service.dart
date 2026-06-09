@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
-
-import '../models/halaqoh_model.dart';
 import '../models/user_model.dart';
+import '../models/halaqoh_model.dart';
 import 'api_client.dart';
 import 'storage_service.dart';
 
@@ -11,30 +10,51 @@ class AuthService {
   final ApiClient _api;
   final StorageService _storage;
 
-  Future<List<HalaqohModel>> fetchHalaqohList() async {
-    final response = await _api.dio.get('/halaqoh/');
-    final data = response.data;
-    if (data is! List) return [];
-    return data
-        .map((item) => HalaqohModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+  // ==========================================
+  // 1. RESTORE SESSION 
+  // ==========================================
+  Future<UserModel?> restoreSession() async {
+    if (!await _storage.hasSession()) return null;
+    try {
+      return await fetchProfile();
+    } catch (_) {
+      await _storage.clearSession();
+      return null;
+    }
   }
 
+  // ==========================================
+  // 2. LOGIN (Sudah diperbaiki!)
+  // ==========================================
   Future<UserModel> login({
     required String email,
     required String password,
   }) async {
-    final response = await _api.dio.post(
-      '/auth/login/',
-      data: {
-        'login': email.trim(),
-        'email': email.trim(),
-        'password': password,
-      },
+    final response = await _api.dio.post('auth/login/', data: {
+      'login': email,
+      'password': password,
+    });
+
+    final data = response.data;
+    
+    // Simpan token dengan nama fungsi yang benar!
+    final accessToken = data['access'];
+    final refreshToken = data['refresh'];
+    await _storage.saveTokens(
+      accessToken: accessToken, 
+      refreshToken: refreshToken
     );
-    return _persistAuthResponse(response.data as Map<String, dynamic>);
+
+    // Sekalian kita simpan data user-nya biar aplikasinya nggak bingung
+    final user = UserModel.fromJson(data['user']);
+    await _storage.saveUser(user);
+
+    return user;
   }
 
+  // ==========================================
+  // 3. REGISTER STUDENT (Sudah diperbaiki!)
+  // ==========================================
   Future<UserModel> registerStudent({
     required String email,
     required String fullName,
@@ -43,24 +63,40 @@ class AuthService {
     required String passwordConfirm,
     required int halaqohId,
   }) async {
-    final response = await _api.dio.post(
-      '/auth/register/',
-      data: {
-        'email': email.trim().toLowerCase(),
-        'full_name': fullName.trim(),
-        'gender': gender,
-        'password': password,
-        'password_confirm': passwordConfirm,
-        'halaqoh_id': halaqohId,
-      },
-    );
-    return _persistAuthResponse(response.data as Map<String, dynamic>);
+    final response = await _api.dio.post('/auth/register/student/', data: {
+      'email': email,
+      'nama': fullName,
+      'gender': gender,
+      'password': password,
+      'halaqoh_id': halaqohId,
+    });
+
+    final data = response.data;
+
+    // Simpan token dengan nama fungsi yang benar!
+    if (data.containsKey('access') && data.containsKey('refresh')) {
+      await _storage.saveTokens(
+        accessToken: data['access'], 
+        refreshToken: data['refresh']
+      );
+    }
+
+    final user = UserModel.fromJson(data['user']);
+    await _storage.saveUser(user);
+
+    return user;
+  }
+
+  Future<List<HalaqohModel>> fetchHalaqohList() async {
+    final response = await _api.dio.get('/halaqoh/'); 
+    final List list = response.data;
+    return list.map((e) => HalaqohModel.fromJson(e)).toList();
   }
 
   Future<UserModel> fetchProfile() async {
-    final response = await _api.dio.get('/auth/profile/');
-    final user = UserModel.fromJson(response.data as Map<String, dynamic>);
-    await _storage.saveUser(user);
+    final response = await _api.dio.get('/auth/profile/'); 
+    final user = UserModel.fromJson(response.data);
+    await _storage.saveUser(user); // Update data lokal
     return user;
   }
 
@@ -69,65 +105,41 @@ class AuthService {
     String? email,
     String? gender,
   }) async {
-    final response = await _api.dio.patch(
-      '/auth/profile/',
-      data: {
-        if (fullName != null) 'full_name': fullName,
-        if (email != null) 'email': email,
-        if (gender != null) 'gender': gender,
-      },
-    );
-    final user = UserModel.fromJson(response.data as Map<String, dynamic>);
-    await _storage.saveUser(user);
+    final data = <String, dynamic>{};
+    if (fullName != null) data['nama'] = fullName;
+    if (email != null) data['email'] = email;
+    if (gender != null) data['gender'] = gender;
+
+    final response = await _api.dio.patch('/auth/profile/', data: data);
+    final user = UserModel.fromJson(response.data);
+    await _storage.saveUser(user); // Update data lokal
     return user;
   }
 
+  // ==========================================
+  // 7. LOGOUT
+  // ==========================================
   Future<void> logout() async {
     try {
       await _api.dio.post('/auth/logout/');
-    } on DioException {
-      // Token mungkin sudah invalid; tetap bersihkan session lokal.
-    }
+    } catch (_) {}
     await _storage.clearSession();
   }
 
-  Future<UserModel?> restoreSession() async {
-    if (!await _storage.hasSession()) return null;
-    try {
-      return await fetchProfile();
-    } on DioException {
-      await _storage.clearSession();
-      return null;
+  // ==========================================
+  // 8. PARSER ERROR
+  // ==========================================
+  String parseError(DioException e) {
+    if (e.response?.data is Map) {
+      final data = e.response!.data as Map;
+      if (data.containsKey('detail')) return data['detail'];
+      if (data.containsKey('error')) return data['error'];
+      
+      final firstKey = data.keys.first;
+      if (data[firstKey] is List) {
+         return data[firstKey][0].toString();
+      }
     }
-  }
-
-  Future<UserModel> _persistAuthResponse(Map<String, dynamic> data) async {
-    final access = data['access'] as String;
-    final refresh = data['refresh'] as String;
-    final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-
-    await _storage.saveTokens(accessToken: access, refreshToken: refresh);
-    await _storage.saveUser(user);
-    return user;
-  }
-
-  String parseError(DioException error) {
-    final data = error.response?.data;
-    if (data is Map<String, dynamic>) {
-      if (data['detail'] != null) return data['detail'].toString();
-      final messages = <String>[];
-      data.forEach((key, value) {
-        if (value is List && value.isNotEmpty) {
-          messages.add('${value.first}');
-        } else if (value is String) {
-          messages.add(value);
-        }
-      });
-      if (messages.isNotEmpty) return messages.join('\n');
-    }
-    if (error.type == DioExceptionType.connectionError) {
-      return 'Tidak dapat terhubung ke server. Pastikan backend Django berjalan.';
-    }
-    return 'Terjadi kesalahan. Coba lagi.';
+    return e.message ?? 'Terjadi kesalahan pada server';
   }
 }
