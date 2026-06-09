@@ -55,13 +55,22 @@ class _HomePageState extends State<HomePage> {
       return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
-    if (_error != null) {
+if (_error != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Gagal memuat data home'),
+            const Text('Gagal memuat data home', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+            
+            // --- INI DETEKTIFNYA ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ),
+            // -----------------------
+            
+            const SizedBox(height: 16),
             ElevatedButton(onPressed: _load, child: const Text('Coba lagi')),
           ],
         ),
@@ -70,6 +79,66 @@ class _HomePageState extends State<HomePage> {
 
     final data = _data!;
 
+    // ==========================================
+    // 1. TAMPILAN JIKA MASIH PENDING
+    // ==========================================
+    if (data.statusJoin == 'pending') {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.hourglass_bottom, size: 80, color: Colors.orange),
+              const SizedBox(height: 16),
+              const Text('Menunggu Persetujuan', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                'Assalamu\'alaikum ${data.nama},\nAkunmu sedang direview oleh Guru.\nSilakan tunggu dan refresh halaman ini.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh Status'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ==========================================
+    // 2. TAMPILAN JIKA DITOLAK
+    // ==========================================
+    if (data.statusJoin == 'rejected') {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cancel, size: 80, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text('Pendaftaran Ditolak', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text(
+                'Maaf, permintaan kamu untuk bergabung ke halaqah ini ditolak oleh Guru. Silakan hubungi admin atau daftar ke halaqah lain.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ==========================================
+    // 3. TAMPILAN NORMAL (JIKA SUDAH APPROVED)
+    // ==========================================
     return RefreshIndicator(
       onRefresh: _load,
       color: Colors.teal,
@@ -90,8 +159,7 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(color: Colors.grey.shade600),
             ),
             
-            // Pengecekan halaqohNama secara aman
-            if ((data.halaqohNama ?? '').isNotEmpty) ...[
+            if (data.halaqohNama.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 '${data.halaqohNama ?? 'Belum ada halaqah'} • ${data.guruNama ?? '-'}',
@@ -182,8 +250,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             
-            // Pengecekan aman list riwayat
-            if ((data.riwayat ?? []).isEmpty)
+            if (data.riwayat.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text('Belum ada riwayat mutabaah', style: TextStyle(color: Colors.grey)),

@@ -2,9 +2,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-from .models import Guru, Halaqoh
-
 
 from .models import ChatMessage, ChatRoom, Guru, Halaqoh, Murid, Mutabaah, SenderType
 from .serializers import (
@@ -139,6 +136,7 @@ class MuridHomeView(APIView):
 
         return Response({
             'nama': murid.nama,
+            'status_join': murid.status_join,
             'halaqoh_nama': halaqoh.nama if halaqoh else '',
             'guru_nama': halaqoh.guru.nama if halaqoh else '',
             'jadwal': halaqoh.jadwal if halaqoh else 'Belum ada jadwal',
@@ -382,3 +380,65 @@ class CreateHalaqohView(APIView):
             'nama': halaqoh.nama,
             'gender': halaqoh.gender
         }, status=status.HTTP_201_CREATED)
+
+# ==========================================
+# API BARU UNTUK SISTEM APPROVAL MURID
+# ==========================================
+
+class PendingMuridListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Pastikan yang akses adalah Guru
+        if not hasattr(request.user, 'guru_profile'):
+            return Response({"detail": "Akses ditolak. Hanya guru yang bisa melihat daftar ini."}, status=status.HTTP_403_FORBIDDEN)
+        
+        guru = request.user.guru_profile
+        
+        # Cari semua murid yang statusnya 'pending' dan mendaftar di halaqoh milik guru ini
+        pending_murids = Murid.objects.filter(halaqoh__guru=guru, status_join='pending')
+        
+        # Format datanya untuk dikirim ke Flutter
+        data = []
+        for murid in pending_murids:
+            data.append({
+                "id": murid.id,
+                "nama": murid.nama,
+                "gender": murid.gender,
+                "halaqoh_nama": murid.halaqoh.nama if murid.halaqoh else "-"
+            })
+            
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ApproveMuridView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, murid_id):
+        if not hasattr(request.user, 'guru_profile'):
+            return Response({"detail": "Akses ditolak."}, status=status.HTTP_403_FORBIDDEN)
+        
+        guru = request.user.guru_profile
+        
+        # Pastikan muridnya ada dan benar-benar mendaftar di halaqoh guru tersebut
+        try:
+            murid = Murid.objects.get(id=murid_id, halaqoh__guru=guru)
+        except Murid.DoesNotExist:
+            return Response({"detail": "Murid tidak ditemukan di daftar antrean Anda."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Tangkap aksi dari Flutter (defaultnya 'approve' kalau tidak dikirim)
+        action = request.data.get('action', 'approve')
+        
+        if action == 'approve':
+            murid.status_join = 'approved'
+            murid.save()
+            return Response({"detail": f"Murid {murid.nama} berhasil disetujui masuk ke halaqah!"}, status=status.HTTP_200_OK)
+            
+        elif action == 'reject':
+            murid.status_join = 'rejected'
+            murid.halaqoh = None # Keluarkan dari halaqah biar dia bisa milih halaqah lain
+            murid.save()
+            return Response({"detail": f"Murid {murid.nama} telah ditolak."}, status=status.HTTP_200_OK)
+            
+        else:
+            return Response({"detail": "Aksi tidak valid."}, status=status.HTTP_400_BAD_REQUEST)
