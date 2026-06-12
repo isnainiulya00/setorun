@@ -187,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // --- BAGIAN YANG DIPERBAIKI ---
+                  // 
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.text, // Keyboard jadi text biasa

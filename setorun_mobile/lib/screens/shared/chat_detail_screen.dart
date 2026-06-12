@@ -85,7 +85,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _room?.messages.length ?? 0,
                     itemBuilder: (context, index) {
-                      return chatMessageBubble(_room!.messages[index]);
+                      return chatMessageBubble(context, _room!.messages[index]);
                     },
                   ),
                 ),

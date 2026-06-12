@@ -37,7 +37,10 @@ class _ChatPageState extends State<ChatPage> {
     super.initState();
     _chatService = ChatService(ApiClient(StorageService()));
     _load();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _load(silent: true));
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _load(silent: true),
+    );
   }
 
   @override
@@ -88,9 +91,9 @@ class _ChatPageState extends State<ChatPage> {
       await _load(silent: true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal kirim pesan: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal kirim pesan: $e')));
     }
   }
 
@@ -102,7 +105,7 @@ class _ChatPageState extends State<ChatPage> {
         : (user?.halaqoh?.guruName ?? 'Guru');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5FAF9),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           _isGuru ? 'Chat Murid' : 'Chat dengan $guruNama',
@@ -115,10 +118,10 @@ class _ChatPageState extends State<ChatPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.teal))
           : _error != null
-              ? Center(child: Text('Error: $_error'))
-              : _isGuru
-                  ? _buildTeacherChatList()
-                  : _buildStudentChatDetail(),
+          ? Center(child: Text('Error: $_error'))
+          : _isGuru
+          ? _buildTeacherChatList()
+          : _buildStudentChatDetail(),
     );
   }
 
@@ -136,9 +139,19 @@ class _ChatPageState extends State<ChatPage> {
             backgroundColor: Colors.teal,
             child: Icon(Icons.person, color: Colors.white),
           ),
-          title: Text(chat.muridNama, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(chat.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: Text(chat.lastTime, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          title: Text(
+            chat.muridNama,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            chat.lastMessage,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Text(
+            chat.lastTime,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           onTap: () {
             Navigator.push(
               context,
@@ -165,7 +178,8 @@ class _ChatPageState extends State<ChatPage> {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
-                  itemBuilder: (context, index) => chatMessageBubble(messages[index]),
+                  itemBuilder: (context, index) =>
+                      chatMessageBubble(context, messages[index]),
                 ),
         ),
         _buildInputBar(),
@@ -177,8 +191,8 @@ class _ChatPageState extends State<ChatPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
       ),
       child: Row(
         children: [
@@ -187,13 +201,18 @@ class _ChatPageState extends State<ChatPage> {
               controller: _messageController,
               decoration: InputDecoration(
                 hintText: 'Ketik pesan...',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade100,
               ),
               onSubmitted: (_) => _send(),
             ),
